@@ -49,7 +49,7 @@ def predict_caption(model, features, tokenizer, max_length):
         if word == 'endseq':  # Stop if end token is predicted
             break
             
-    return in_text
+    return in_text.replace("startseq",'').replace("endseq",'').strip()
 # Streamlit app layout
 st.title("Image Caption Generator")
 
