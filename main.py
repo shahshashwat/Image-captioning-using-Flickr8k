@@ -24,32 +24,32 @@ def idx_to_word(integer,tokenizer):
             return word
     return None
 
-def beam_search_predictions(model, features, tokenizer, max_length, beam_index=10):
-    start = [tokenizer.word_index['startseq']]
-    start_word = [[start, 0.0]]
-    
-    while len(start_word[0][0]) < max_length:
-        temp = []
-        for s in start_word:
-            sequence = pad_sequences([s[0]], maxlen=max_length, padding='post')
-            preds = model.predict([features, sequence], verbose=0)
-            word_preds = np.argsort(preds[0])[-beam_index:]
+def predict_caption(model, features, tokenizer, max_length):
+    in_text = "startseq"  # Start token for caption generation
+
+    for i in range(max_length):  # Ensure the loop does not exceed max_length
+        sequence = tokenizer.texts_to_sequences([in_text])[0]  # Convert text to sequence
+        sequence = pad_sequences([sequence], maxlen=max_length)  # Ensure this uses the correct max_length (34)
+
+        # Debugging shapes (optional to help diagnose issues)
+        print("Features shape:", features.shape)
+        print("Sequence shape:", sequence.shape)
+
+        # Predict the next word using the model
+        y_pred = model.predict([features, sequence])  # Ensure shapes match the model's expected input
+        y_pred = np.argmax(y_pred)  # Get the index of the predicted word
+        
+        word = idx_to_word(y_pred, tokenizer)  # Convert index to word
+        
+        if word is None:  # Break if no word found
+            break
+        
+        in_text += " " + word  # Append the word to the input text
+        
+        if word == 'endseq':  # Stop if end token is predicted
+            break
             
-            for w in word_preds:
-                next_cap, prob = s[0][:], s[1]
-                next_cap.append(w)
-                prob += preds[0][w]
-                temp.append([next_cap, prob])
-                
-        start_word = temp
-        start_word = sorted(start_word, reverse=False, key=lambda l: l[1])
-        start_word = start_word[-beam_index:]
-    
-    start_word = start_word[-1][0]
-    final_caption = [idx_to_word(i, tokenizer) for i in start_word]
-    final_caption = ' '.join([word for word in final_caption if word not in ['startseq', 'endseq']])
-    
-    return final_caption
+    return in_text
 # Streamlit app layout
 st.title("Image Caption Generator")
 
@@ -70,5 +70,5 @@ if uploaded_file is not None:
     
     # Generate and display the caption (assuming you have the caption prediction function defined)
     if st.button("Generate Caption"):
-        caption =beam_search_predictions(caption_model,features,tokenizer, 34)
+        caption = predict_caption(caption_model,features,tokenizer, 34)
         st.write("Generated Caption: ", caption)
